@@ -2,7 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import type { ConsultaCompleta } from "@/lib/api/types";
 import { armarContextoParaIA } from "@/lib/risk";
 
-type Proveedor = "openrouter" | "openai" | "anthropic" | "custom";
+type Proveedor = "openrouter" | "openai" | "anthropic" | "gemini" | "custom";
+
+// Proveedor que se usa cuando el botón "Generar informe con IA" se aprieta
+// sin elegir nada (intento automático) — configurable sin tocar código.
+const PROVEEDOR_POR_DEFECTO = (process.env.RADAR_AI_DEFAULT_PROVIDER as Proveedor) || "openrouter";
 
 // Si el servidor tiene la key configurada como variable de entorno, se usa
 // automáticamente sin pedirle nada al usuario en pantalla. Si el cliente
@@ -11,12 +15,14 @@ const KEY_POR_PROVEEDOR: Record<Proveedor, string | undefined> = {
   openrouter: process.env.OPENROUTER_API_KEY,
   openai: process.env.OPENAI_API_KEY,
   anthropic: process.env.ANTHROPIC_API_KEY,
+  gemini: process.env.GEMINI_API_KEY,
   custom: process.env.RADAR_AI_API_KEY,
 };
 const MODELO_POR_DEFECTO: Record<Proveedor, string> = {
   openrouter: process.env.OPENROUTER_MODEL || "openrouter/free",
   openai: process.env.OPENAI_MODEL || "gpt-4o-mini",
   anthropic: process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-20241022",
+  gemini: process.env.GEMINI_MODEL || "gemini-2.5-flash",
   custom: process.env.RADAR_AI_MODEL || "",
 };
 const BASE_URL_SERVIDOR = process.env.RADAR_AI_BASE_URL;
@@ -53,13 +59,15 @@ function construirRequest(proveedor: Proveedor, model: string, contexto: string,
     };
   }
 
-  // openrouter, openai y "custom" (cualquier endpoint compatible con la
-  // API de Chat Completions de OpenAI) comparten el mismo formato.
+  // openrouter, openai, gemini y "custom" (cualquier endpoint compatible
+  // con la API de Chat Completions de OpenAI) comparten el mismo formato.
   const url =
     proveedor === "openrouter"
       ? "https://openrouter.ai/api/v1/chat/completions"
       : proveedor === "openai"
       ? "https://api.openai.com/v1/chat/completions"
+      : proveedor === "gemini"
+      ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
       : baseUrl;
 
   const headers: Record<string, string> = {
@@ -105,7 +113,7 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     data = body?.data;
-    proveedor = (body?.proveedor as Proveedor) || "openrouter";
+    proveedor = (body?.proveedor as Proveedor) || PROVEEDOR_POR_DEFECTO;
     apiKey = typeof body?.apiKey === "string" && body.apiKey.trim() ? body.apiKey.trim() : KEY_POR_PROVEEDOR[proveedor] || "";
     model = typeof body?.model === "string" && body.model.trim() ? body.model.trim() : MODELO_POR_DEFECTO[proveedor];
     baseUrl = typeof body?.baseUrl === "string" && body.baseUrl.trim() ? body.baseUrl.trim() : BASE_URL_SERVIDOR;
@@ -113,7 +121,7 @@ export async function POST(req: NextRequest) {
     if (!data || !data.cuit) {
       return NextResponse.json({ error: "Faltan los datos de la consulta." }, { status: 400 });
     }
-    if (!["openrouter", "openai", "anthropic", "custom"].includes(proveedor)) {
+    if (!["openrouter", "openai", "anthropic", "gemini", "custom"].includes(proveedor)) {
       return NextResponse.json({ error: "Proveedor de IA inválido." }, { status: 400 });
     }
     if (!apiKey) {
