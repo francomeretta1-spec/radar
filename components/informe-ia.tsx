@@ -5,7 +5,7 @@ import { Sparkles, Loader2, RefreshCw, KeyRound } from "lucide-react";
 import type { ConsultaCompleta } from "@/lib/api/types";
 import { Card } from "@/components/ui/card";
 
-type Proveedor = "openrouter" | "openai" | "anthropic" | "custom";
+type Proveedor = "openrouter" | "openai" | "anthropic" | "gemini" | "custom";
 
 // El modelo "openrouter/free" es un router que elige automáticamente entre
 // los modelos gratuitos disponibles en OpenRouter (sin costo, sin
@@ -14,6 +14,7 @@ type Proveedor = "openrouter" | "openai" | "anthropic" | "custom";
 // sin aviso; el router siempre resuelve a uno vigente.
 const PROVEEDORES: { id: Proveedor; label: string; modeloPorDefecto: string }[] = [
   { id: "openrouter", label: "OpenRouter (modelo gratis)", modeloPorDefecto: "openrouter/free" },
+  { id: "gemini", label: "Google Gemini", modeloPorDefecto: "gemini-2.5-flash" },
   { id: "openai", label: "OpenAI", modeloPorDefecto: "gpt-4o-mini" },
   { id: "anthropic", label: "Anthropic", modeloPorDefecto: "claude-3-5-haiku-20241022" },
   { id: "custom", label: "Otro (compatible OpenAI)", modeloPorDefecto: "" },
@@ -173,6 +174,22 @@ export function InformeIA({ data }: { data: ConsultaCompleta }) {
             openrouter.ai/keys
           </a>
           ).
+        </p>
+      )}
+
+      {proveedor === "gemini" && (
+        <p className="text-[11px] text-(--fg-faint) -mt-1">
+          Gemini tiene una capa gratuita generosa en Google AI Studio (sin tarjeta). Conseguí tu
+          API Key en{" "}
+          <a
+            href="https://aistudio.google.com/apikey"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-(--radar)"
+          >
+            aistudio.google.com/apikey
+          </a>
+          .
         </p>
       )}
 
